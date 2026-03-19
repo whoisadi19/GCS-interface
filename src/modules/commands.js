@@ -1,5 +1,5 @@
 /**
- * Command Center Module — UI for sending commands to the drone
+ * Command Center Module — KINETIC Design
  */
 
 export class CommandCenter {
@@ -15,7 +15,6 @@ export class CommandCenter {
       if (confirm('Arm the vehicle? Ensure area is clear.')) {
         this.telemetry.setArmed(true);
         this.log('Vehicle ARMED', 'warning');
-        this._updateArmUI(true);
       }
     });
 
@@ -24,7 +23,6 @@ export class CommandCenter {
       this.telemetry.setArmed(false);
       this.telemetry.stopMission();
       this.log('Vehicle DISARMED', 'success');
-      this._updateArmUI(false);
     });
 
     // Set mode
@@ -45,13 +43,11 @@ export class CommandCenter {
       this.telemetry.setFSMState('TAKEOFF');
       this.telemetry.startMission();
       this.telemetry.setMode('GUIDED');
-      this.log('TAKEOFF command sent — target altitude 2.5m', 'success');
-      
-      // Transition to SEARCH after delay
+      this.log('TAKEOFF command sent — target alt 2.5m', 'success');
       setTimeout(() => {
         this.telemetry.setFSMState('SEARCH');
         this.telemetry.setMode('AUTO');
-        this.log('FSM → SEARCH — beginning area coverage', 'system');
+        this.log('FSM → SEARCH — area coverage started', 'system');
       }, 5000);
     });
 
@@ -70,56 +66,55 @@ export class CommandCenter {
       this.log('Return-To-Base commanded', 'warning');
     });
 
-    // Sortie management
+    // Start sortie
     document.getElementById('btn-start-sortie')?.addEventListener('click', () => {
       if (!this.telemetry.data.armed) {
-        this.log('Cannot start sortie — vehicle is DISARMED', 'error');
+        this.log('Cannot start sortie — DISARMED', 'error');
         return;
       }
       this.telemetry.setFSMState('READY');
       this.log(`Sortie #${this.telemetry.data.sortie} started`, 'success');
-      document.getElementById('cmd-sortie-status').textContent = 'ACTIVE';
-      document.getElementById('cmd-sortie-status').style.color = '#34d399';
-      
-      // Auto-start takeoff sequence
+      const el = document.getElementById('cmd-sortie-status');
+      if (el) { el.textContent = 'ACTIVE'; el.className = 'text-[9px] font-mono bg-tertiary/10 text-tertiary px-2 py-0.5'; }
       setTimeout(() => {
         this.telemetry.setFSMState('TAKEOFF');
         this.telemetry.startMission();
-        this.log('Auto-takeoff sequence initiated', 'system');
+        this.log('Auto-takeoff initiated', 'system');
       }, 2000);
     });
 
+    // End sortie
     document.getElementById('btn-end-sortie')?.addEventListener('click', () => {
       this.telemetry.setFSMState('RETURN');
       this.telemetry.setMode('RTL');
-      this.log(`Sortie #${this.telemetry.data.sortie} ending — returning to dock`, 'warning');
-      document.getElementById('cmd-sortie-status').textContent = 'RETURNING';
-      document.getElementById('cmd-sortie-status').style.color = '#fbbf24';
+      this.log(`Sortie #${this.telemetry.data.sortie} ending — RTB`, 'warning');
+      const el = document.getElementById('cmd-sortie-status');
+      if (el) { el.textContent = 'RETURNING'; el.className = 'text-[9px] font-mono bg-secondary-container/10 text-secondary-container px-2 py-0.5'; }
 
-      // Simulate landing and docking sequence
       setTimeout(() => {
         this.telemetry.setFSMState('LAND');
         this.log('Landing initiated');
         setTimeout(() => {
           this.telemetry.setFSMState('DOCK');
           this.telemetry.stopMission();
-          this.log('Docked — data transfer in progress', 'success');
+          this.log('Docked — data transfer active', 'success');
           setTimeout(() => {
             this.telemetry.setFSMState('RECHARGE');
             this.telemetry.data.sortie++;
-            document.getElementById('cmd-sortie-num').textContent = `Sortie #${this.telemetry.data.sortie}`;
-            document.getElementById('cmd-sortie-status').textContent = 'RECHARGING';
-            document.getElementById('cmd-sortie-status').style.color = '#38bdf8';
-            document.getElementById('recharge-status').querySelector('.recharge-text').textContent = 'Charging... 78%';
-            this.log(`Recharging — next sortie: #${this.telemetry.data.sortie}`, 'system');
+            this._setText('cmd-sortie-num', `Sortie #${this.telemetry.data.sortie}`);
+            const s = document.getElementById('cmd-sortie-status');
+            if (s) { s.textContent = 'RECHARGING'; s.className = 'text-[9px] font-mono bg-primary/10 text-primary px-2 py-0.5'; }
+            const rt = document.getElementById('recharge-text');
+            if (rt) rt.textContent = 'Charging... 78%';
+            this.log(`Recharging — next: #${this.telemetry.data.sortie}`, 'system');
           }, 3000);
         }, 4000);
       }, 5000);
     });
 
-    // Emergency controls
+    // Emergency
     document.getElementById('btn-emergency-land')?.addEventListener('click', () => {
-      if (confirm('⚠️ EMERGENCY LAND — Drone will descend immediately. Confirm?')) {
+      if (confirm('⚠️ EMERGENCY LAND — Immediate descent. Confirm?')) {
         this.telemetry.setMode('LAND');
         this.telemetry.setFSMState('LAND');
         this.telemetry.stopMission();
@@ -128,52 +123,62 @@ export class CommandCenter {
     });
 
     document.getElementById('btn-kill-switch')?.addEventListener('click', () => {
-      if (confirm('💀 KILL SWITCH — This will cut all motors immediately! Drone WILL crash. Confirm?')) {
+      if (confirm('💀 KILL SWITCH — All motors cut. Drone WILL crash. Confirm?')) {
         this.telemetry.setArmed(false);
         this.telemetry.stopMission();
         this.telemetry.setFSMState('INIT');
-        this.log('💀 KILL SWITCH activated — motors killed', 'error');
-        this._updateArmUI(false);
+        this.log('💀 KILL SWITCH — motors killed', 'error');
       }
     });
 
     document.getElementById('btn-abort')?.addEventListener('click', () => {
       this.telemetry.setFSMState('RETURN');
       this.telemetry.setMode('RTL');
-      this.log('✋ MISSION ABORTED — returning to base', 'error');
+      this.log('✋ MISSION ABORTED — RTB', 'error');
     });
 
     // Clear log
     document.getElementById('btn-clear-log')?.addEventListener('click', () => {
-      const logEl = document.getElementById('command-log');
-      if (logEl) logEl.innerHTML = '<div class="log-entry system">Log cleared</div>';
+      ['command-log', 'command-log-sidebar'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+      });
+      CommandCenter.addLog('Log cleared', 'system');
     });
   }
 
-  _updateArmUI(armed) {
-    const armBtn = document.getElementById('btn-arm');
-    const disarmBtn = document.getElementById('btn-disarm');
-    if (armBtn) armBtn.style.opacity = armed ? '0.5' : '1';
-    if (disarmBtn) disarmBtn.style.opacity = armed ? '1' : '0.5';
+  _setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
   }
 
-  /**
-   * Add entry to command log
-   */
   static addLog(message, type = '') {
-    const logEl = document.getElementById('command-log');
-    if (!logEl) return;
-
-    const entry = document.createElement('div');
-    entry.className = `log-entry ${type}`;
     const time = new Date().toLocaleTimeString();
-    entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
-    logEl.appendChild(entry);
-    logEl.scrollTop = logEl.scrollHeight;
+    const typeColors = {
+      system: { border: 'border-primary', text: 'text-primary', bg: 'bg-primary/5', label: 'OK' },
+      success: { border: 'border-tertiary', text: 'text-tertiary', bg: 'bg-tertiary/5', label: 'OK' },
+      warning: { border: 'border-secondary-container', text: 'text-secondary-container', bg: 'bg-secondary-container/5', label: 'WARN' },
+      error: { border: 'border-error', text: 'text-error', bg: 'bg-error/5', label: 'CRIT' },
+      '': { border: 'border-transparent', text: 'text-on-surface-variant', bg: '', label: 'INFO' },
+    };
+    const tc = typeColors[type] || typeColors[''];
 
-    // Keep max 100 entries
-    while (logEl.children.length > 100) {
-      logEl.removeChild(logEl.firstChild);
-    }
+    const html = `
+      <div class="flex p-1.5 ${tc.bg} border-l-2 ${tc.border}">
+        <span class="${tc.text} whitespace-nowrap">[${time}]</span>
+        <span class="text-on-surface uppercase truncate ml-2 flex-1">${message}</span>
+        <span class="${tc.text} ml-2">${tc.label}</span>
+      </div>
+    `;
+
+    // Write to both logs
+    ['command-log', 'command-log-sidebar'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.insertAdjacentHTML('beforeend', html);
+        el.scrollTop = el.scrollHeight;
+        while (el.children.length > 100) el.removeChild(el.firstChild);
+      }
+    });
   }
 }

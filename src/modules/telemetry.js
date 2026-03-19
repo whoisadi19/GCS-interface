@@ -1,5 +1,5 @@
 /**
- * Telemetry Module — Simulates MAVLink telemetry data and updates UI
+ * Telemetry Module — Simulates MAVLink telemetry data and updates KINETIC UI
  */
 
 export class Telemetry {
@@ -30,26 +30,20 @@ export class Telemetry {
     };
     this.maxHistory = 200;
 
-    // Simulation state
     this._simTime = 0;
     this._missionActive = false;
     this._fsmIndex = 0;
     this._fsmStates = ['INIT', 'READY', 'TAKEOFF', 'SEARCH', 'FEATURE_LOG', 'RETURN', 'LAND', 'DOCK', 'RECHARGE'];
   }
 
-  /**
-   * Simulate one tick of telemetry data
-   */
   tick(dt = 0.1) {
     this._simTime += dt;
     const t = this._simTime;
 
-    // Smooth oscillations for realistic feel
     this.data.roll = Math.sin(t * 0.3) * 8 + Math.sin(t * 0.7) * 3;
     this.data.pitch = Math.sin(t * 0.2) * 5 + Math.cos(t * 0.5) * 2;
     this.data.heading = ((t * 5) % 360 + 360) % 360;
 
-    // Altitude simulation 
     if (this.data.armed) {
       const targetAlt = this._missionActive ? 2.5 + Math.sin(t * 0.1) * 0.3 : 0;
       this.data.altitude += (targetAlt - this.data.altitude) * 0.02;
@@ -67,59 +61,40 @@ export class Telemetry {
       this.data.pitch = 0;
     }
 
-    // GPS sats (simulated warm-up)
     if (this.data.gps_sats < 12) {
       this.data.gps_sats = Math.min(12, Math.floor(t * 0.5));
     }
 
-    // Link quality with slight jitter
     this.data.link = Math.max(70, 100 - Math.random() * 8);
 
-    // Record history
     for (const key of ['altitude', 'speed', 'battery', 'heading']) {
       this.history[key].push(this.data[key]);
-      if (this.history[key].length > this.maxHistory) {
-        this.history[key].shift();
-      }
+      if (this.history[key].length > this.maxHistory) this.history[key].shift();
     }
   }
 
-  setArmed(armed) {
-    this.data.armed = armed;
-  }
-
-  setMode(mode) {
-    this.data.mode = mode;
-  }
-
+  setArmed(armed) { this.data.armed = armed; }
+  setMode(mode) { this.data.mode = mode; }
   setFSMState(state) {
     this.data.fsmState = state;
     this._fsmIndex = this._fsmStates.indexOf(state);
   }
+  startMission() { this._missionActive = true; }
+  stopMission() { this._missionActive = false; }
 
-  startMission() {
-    this._missionActive = true;
-  }
-
-  stopMission() {
-    this._missionActive = false;
-  }
-
-  /**
-   * Update all UI elements with current telemetry data
-   */
   updateUI() {
     const d = this.data;
 
-    // Telemetry cards
-    this._setText('telem-alt', `${d.altitude.toFixed(1)} <small>m</small>`);
-    this._setText('telem-speed', `${d.speed.toFixed(1)} <small>m/s</small>`);
-    this._setText('telem-heading', `${Math.round(d.heading)}° <small>${this._headingDir(d.heading)}</small>`);
-    this._setText('telem-battery', `${Math.round(d.battery)} <small>%</small>`);
-    this._setText('telem-voltage', `${d.voltage.toFixed(1)} <small>V</small>`);
-    this._setText('telem-current', `${d.current.toFixed(1)} <small>A</small>`);
-    this._setText('telem-sats', `${d.gps_sats}`);
-    this._setText('telem-link', `${Math.round(d.link)} <small>%</small>`);
+    // Dashboard telemetry cards
+    this._setText('telem-alt', d.altitude.toFixed(1));
+    this._setText('telem-speed', d.speed.toFixed(1));
+    this._setText('telem-heading', `${Math.round(d.heading)}°`);
+    this._setText('telem-heading-dir', this._headingDir(d.heading));
+    this._setText('telem-battery', Math.round(d.battery).toString());
+    this._setText('telem-voltage', d.voltage.toFixed(1));
+    this._setText('telem-current', d.current.toFixed(1));
+    this._setText('telem-sats', d.gps_sats.toString());
+    this._setText('telem-link', Math.round(d.link).toString());
 
     // Bars
     this._setBar('bar-alt', (d.altitude / 5) * 100);
@@ -129,68 +104,73 @@ export class Telemetry {
 
     // Battery color
     const batBar = document.getElementById('bar-battery');
-    if (batBar) {
-      batBar.style.background = d.battery > 30 ? '#34d399' : (d.battery > 15 ? '#fbbf24' : '#f87171');
-    }
+    if (batBar) batBar.style.background = d.battery > 30 ? '#67e100' : (d.battery > 15 ? '#fbbf24' : '#f87171');
 
     // VIO status
     const vio = document.getElementById('telem-vio');
     if (vio) {
       if (d.armed && this._missionActive) {
-        vio.textContent = 'TRACKING';
-        vio.className = 'telem-value status-good';
+        vio.innerHTML = '<span class="text-tertiary">TRACKING</span>';
       } else if (d.armed) {
-        vio.textContent = 'ACTIVE';
-        vio.className = 'telem-value status-good';
+        vio.innerHTML = '<span class="text-tertiary">ACTIVE</span>';
       } else {
-        vio.textContent = 'IDLE';
-        vio.className = 'telem-value';
+        vio.innerHTML = '<span class="text-on-surface-variant">IDLE</span>';
       }
     }
 
-    // Compass needle
-    const needle = document.getElementById('compass-needle');
-    if (needle) {
-      needle.style.transform = `translate(-50%, 0) rotate(${d.heading}deg)`;
+    // Dashboard header
+    this._setText('dash-mode', d.mode);
+    this._setText('dash-bat', `${Math.round(d.battery)}% / ${d.voltage.toFixed(1)}V`);
+    const dashArmed = document.getElementById('dash-armed-status');
+    if (dashArmed) {
+      dashArmed.innerHTML = d.armed
+        ? '<span class="text-tertiary">ARMED</span>'
+        : '<span class="text-error">DISARMED</span>';
     }
 
-    // HUD badges
-    this._setText('hud-mode-badge', d.mode);
-    const armedBadge = document.getElementById('hud-armed-badge');
-    if (armedBadge) {
-      armedBadge.textContent = d.armed ? 'ARMED' : 'DISARMED';
-      armedBadge.className = `armed-badge ${d.armed ? 'armed' : 'disarmed'}`;
+    // PFD elements
+    this._setText('pfd-mode', d.mode);
+    const pfdArmed = document.getElementById('pfd-armed');
+    if (pfdArmed) {
+      pfdArmed.innerHTML = d.armed
+        ? '<span class="text-tertiary">ARMED</span>'
+        : '<span class="text-error">DISARMED</span>';
+    }
+    this._setText('pfd-alt', `${d.altitude.toFixed(1)}m`);
+    this._setText('pfd-speed', `${d.speed.toFixed(1)} m/s`);
+    this._setText('pfd-heading', `${Math.round(d.heading)}° ${this._headingDir(d.heading)}`);
+    this._setText('pfd-bat', `${Math.round(d.battery)}%`);
+
+    // Battery ring on PFD
+    const batRing = document.getElementById('pfd-bat-ring');
+    if (batRing) {
+      const circumference = 125.6;
+      batRing.setAttribute('stroke-dashoffset', (circumference * (1 - d.battery / 100)).toString());
+      batRing.style.color = d.battery > 30 ? '#67e100' : (d.battery > 15 ? '#fbbf24' : '#f87171');
+    }
+    const batLabel = document.getElementById('pfd-bat-label');
+    if (batLabel) {
+      batLabel.textContent = d.battery > 30 ? 'NOMINAL' : (d.battery > 15 ? 'LOW' : 'CRITICAL');
+      batLabel.style.color = d.battery > 30 ? '#67e100' : (d.battery > 15 ? '#fbbf24' : '#f87171');
     }
 
     // Top bar badges
-    this._setText('fsm-badge', d.fsmState);
-    this._setText('sortie-badge', `Sortie #${d.sortie}`);
+    this._setText('fsm-badge-top', d.fsmState);
+    this._setText('sortie-badge-top', `Sortie #${d.sortie}`);
 
-    // FSM timeline
+    // FSM timeline in sidebar
     this._updateFSMTimeline(d.fsmState);
 
-    // Status bar
-    this._setText('status-mode', `Mode: ${d.mode}`);
-    this._setText('status-bat-val', `${Math.round(d.battery)}%`);
-    this._setText('status-link', `Link: ${Math.round(d.link)}%`);
-    this._setText('status-datarate', `↕ ${Math.round(Math.random() * 200 + 800)} B/s`);
-
-    const batFill = document.getElementById('status-bat-fill');
-    if (batFill) {
-      batFill.style.width = `${d.battery}%`;
-      batFill.style.background = d.battery > 30 ? '#34d399' : (d.battery > 15 ? '#fbbf24' : '#f87171');
-    }
-
-    // Time
-    const timeEl = document.getElementById('status-time');
-    if (timeEl) {
-      timeEl.textContent = new Date().toLocaleTimeString();
-    }
+    // Bottom status bar
+    this._setText('status-gps', `GPS: ${d.gps_sats} Sats`);
+    this._setText('status-bat-footer', `Battery ${Math.round(d.battery)}%`);
+    this._setText('status-alt-footer', `Alt ${d.altitude.toFixed(1)}m`);
+    this._setText('status-time', new Date().toLocaleTimeString());
   }
 
-  _setText(id, html) {
+  _setText(id, text) {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = html;
+    if (el) el.textContent = text;
   }
 
   _setBar(id, pct) {
@@ -209,19 +189,16 @@ export class Telemetry {
     states.forEach(el => {
       const s = el.dataset.state;
       if (s === currentState) {
-        el.className = 'fsm-state active';
+        el.className = 'fsm-state text-[8px] font-mono px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30';
         found = true;
       } else if (!found) {
-        el.className = 'fsm-state completed';
+        el.className = 'fsm-state text-[8px] font-mono px-1.5 py-0.5 bg-tertiary/10 text-tertiary';
       } else {
-        el.className = 'fsm-state';
+        el.className = 'fsm-state text-[8px] font-mono px-1.5 py-0.5 bg-surface-container text-on-surface-variant';
       }
     });
   }
 
-  /**
-   * Draw telemetry graph on canvas
-   */
   drawGraph(canvasId, param = 'altitude') {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -235,62 +212,51 @@ export class Telemetry {
     if (!data || data.length < 2) return;
 
     // Grid
-    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.strokeStyle = 'rgba(60, 73, 76, 0.15)';
     ctx.lineWidth = 1;
     for (let i = 0; i < 5; i++) {
       const y = (h / 5) * i;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
     }
 
-    // Data line
     const max = Math.max(...data, 1);
     const min = Math.min(...data, 0);
     const range = max - min || 1;
 
-    const colors = {
-      altitude: '#38bdf8',
-      speed: '#818cf8',
-      battery: '#34d399',
-      heading: '#fbbf24',
-    };
+    const colors = { altitude: '#44d8f1', speed: '#67e100', battery: '#67e100', heading: '#ffb692' };
+    const color = colors[param] || '#44d8f1';
 
-    ctx.strokeStyle = colors[param] || '#38bdf8';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-
     data.forEach((val, i) => {
       const x = (i / (this.maxHistory - 1)) * w;
       const y = h - ((val - min) / range) * (h - 10) - 5;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     });
     ctx.stroke();
 
-    // Fill under curve
+    // Fill
     const lastX = ((data.length - 1) / (this.maxHistory - 1)) * w;
     ctx.lineTo(lastX, h);
     ctx.lineTo(0, h);
     ctx.closePath();
     const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, (colors[param] || '#38bdf8') + '30');
+    grad.addColorStop(0, color + '20');
     grad.addColorStop(1, 'transparent');
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Current value label
+    // Value
     const lastVal = data[data.length - 1];
-    ctx.fillStyle = colors[param] || '#38bdf8';
-    ctx.font = '600 11px "JetBrains Mono"';
+    ctx.fillStyle = color;
+    ctx.font = '600 10px "Roboto Mono"';
     ctx.textAlign = 'right';
-    ctx.fillText(`${lastVal.toFixed(1)}`, w - 5, 15);
+    ctx.fillText(`${lastVal.toFixed(1)}`, w - 4, 12);
 
-    // Param label
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.font = '500 9px "Inter"';
+    ctx.fillStyle = 'rgba(187, 201, 204, 0.4)';
+    ctx.font = '500 9px "Space Grotesk"';
     ctx.textAlign = 'left';
-    ctx.fillText(param.toUpperCase(), 5, 15);
+    ctx.fillText(param.toUpperCase(), 4, 12);
   }
 }
