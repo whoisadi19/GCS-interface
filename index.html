@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASCEND GCS — Ground Control Station</title>
+  <meta name="description" content="Ground Control Station for ASCEND UAV — IRoC-U 2026 Mission" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles/index.css" />
+  <link rel="stylesheet" href="/src/styles/hud.css" />
+  <link rel="stylesheet" href="/src/styles/panels.css" />
+</head>
+<body>
+  <!-- TOP NAV BAR -->
+  <header id="top-bar">
+    <div class="top-bar-left">
+      <div class="logo">
+        <span class="logo-icon">◆</span>
+        <span class="logo-text">ASCEND <small>GCS</small></span>
+      </div>
+      <nav id="main-nav">
+        <button class="nav-tab active" data-tab="flight-data">
+          <span class="tab-icon">📡</span> Flight Data
+        </button>
+        <button class="nav-tab" data-tab="detections">
+          <span class="tab-icon">🎯</span> Detections
+        </button>
+        <button class="nav-tab" data-tab="seed-images">
+          <span class="tab-icon">🌱</span> Seed Images
+        </button>
+        <button class="nav-tab" data-tab="commands">
+          <span class="tab-icon">⚡</span> Command Center
+        </button>
+      </nav>
+    </div>
+    <div class="top-bar-right">
+      <div class="connection-badge" id="connection-badge">
+        <span class="conn-dot"></span>
+        <span class="conn-label">Simulated</span>
+      </div>
+      <div class="sortie-badge" id="sortie-badge">Sortie #1</div>
+      <div class="fsm-badge" id="fsm-badge">INIT</div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main id="app-main">
+    <!-- ===== FLIGHT DATA TAB ===== -->
+    <section class="tab-content active" id="tab-flight-data">
+      <div class="flight-data-grid">
+        <!-- LEFT: HUD -->
+        <div class="hud-container">
+          <canvas id="hud-canvas" width="480" height="360"></canvas>
+          <div class="hud-overlay-info">
+            <span id="hud-mode-badge" class="mode-badge">STABILIZE</span>
+            <span id="hud-armed-badge" class="armed-badge disarmed">DISARMED</span>
+          </div>
+        </div>
+        <!-- RIGHT: Telemetry Panels -->
+        <div class="telemetry-panels">
+          <div class="telem-row">
+            <div class="telem-card">
+              <div class="telem-label">Altitude</div>
+              <div class="telem-value" id="telem-alt">0.0 <small>m</small></div>
+              <div class="telem-bar"><div class="telem-bar-fill" id="bar-alt"></div></div>
+            </div>
+            <div class="telem-card">
+              <div class="telem-label">Speed</div>
+              <div class="telem-value" id="telem-speed">0.0 <small>m/s</small></div>
+              <div class="telem-bar"><div class="telem-bar-fill speed" id="bar-speed"></div></div>
+            </div>
+            <div class="telem-card">
+              <div class="telem-label">Heading</div>
+              <div class="telem-value" id="telem-heading">0° <small>N</small></div>
+              <div class="telem-compass" id="telem-compass">
+                <div class="compass-needle" id="compass-needle"></div>
+              </div>
+            </div>
+          </div>
+          <div class="telem-row">
+            <div class="telem-card">
+              <div class="telem-label">Battery</div>
+              <div class="telem-value" id="telem-battery">100 <small>%</small></div>
+              <div class="telem-bar"><div class="telem-bar-fill battery" id="bar-battery"></div></div>
+            </div>
+            <div class="telem-card">
+              <div class="telem-label">Voltage</div>
+              <div class="telem-value" id="telem-voltage">14.8 <small>V</small></div>
+            </div>
+            <div class="telem-card">
+              <div class="telem-label">Current</div>
+              <div class="telem-value" id="telem-current">0.0 <small>A</small></div>
+            </div>
+          </div>
+          <div class="telem-row">
+            <div class="telem-card">
+              <div class="telem-label">GPS Sats</div>
+              <div class="telem-value" id="telem-sats">0</div>
+            </div>
+            <div class="telem-card">
+              <div class="telem-label">VIO Status</div>
+              <div class="telem-value status-good" id="telem-vio">ACTIVE</div>
+            </div>
+            <div class="telem-card">
+              <div class="telem-label">Link Quality</div>
+              <div class="telem-value" id="telem-link">100 <small>%</small></div>
+              <div class="telem-bar"><div class="telem-bar-fill link" id="bar-link"></div></div>
+            </div>
+          </div>
+          <!-- FSM State Timeline -->
+          <div class="fsm-timeline" id="fsm-timeline">
+            <div class="fsm-label">FSM State</div>
+            <div class="fsm-states">
+              <span class="fsm-state active" data-state="INIT">INIT</span>
+              <span class="fsm-arrow">→</span>
+              <span class="fsm-state" data-state="READY">READY</span>
+              <span class="fsm-arrow">→</span>
+              <span class="fsm-state" data-state="TAKEOFF">TAKEOFF</span>
+              <span class="fsm-arrow">→</span>
+              <span class="fsm-state" data-state="SEARCH">SEARCH</span>
+              <span class="fsm-arrow">→</span>
+              <span class="fsm-state" data-state="FEATURE_LOG">LOG</span>
+              <span class="fsm-arrow">→</span>
+              <span class="fsm-state" data-state="RETURN">RETURN</span>
+              <span class="fsm-arrow">→</span>
+              <span class="fsm-state" data-state="LAND">LAND</span>
+              <span class="fsm-arrow">→</span>
+              <span class="fsm-state" data-state="DOCK">DOCK</span>
+              <span class="fsm-arrow">→</span>
+              <span class="fsm-state" data-state="RECHARGE">RECHARGE</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Bottom: Telemetry Graph -->
+      <div class="telem-graph-container">
+        <div class="graph-header">
+          <span>Telemetry Graph</span>
+          <select id="graph-param">
+            <option value="altitude">Altitude</option>
+            <option value="speed">Speed</option>
+            <option value="battery">Battery</option>
+            <option value="heading">Heading</option>
+          </select>
+        </div>
+        <canvas id="telem-graph" height="120"></canvas>
+      </div>
+    </section>
+
+    <!-- ===== DETECTIONS TAB ===== -->
+    <section class="tab-content" id="tab-detections">
+      <div class="detections-layout">
+        <div class="detection-feed">
+          <div class="section-header">
+            <h2>Live Detection Feed</h2>
+            <div class="detection-controls">
+              <label>Min Confidence: <input type="range" id="conf-threshold" min="0" max="100" value="50" /><span id="conf-value">50%</span></label>
+            </div>
+          </div>
+          <div class="detection-live-view" id="detection-live-view">
+            <canvas id="detection-canvas" width="640" height="480"></canvas>
+            <div class="detection-overlay-info">
+              <span id="detection-count">0 detections</span>
+            </div>
+          </div>
+        </div>
+        <div class="detection-sidebar">
+          <div class="section-header"><h2>Detection Log</h2></div>
+          <div class="detection-cards" id="detection-cards">
+            <!-- Detection cards injected here -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SEED IMAGES TAB ===== -->
+    <section class="tab-content" id="tab-seed-images">
+      <div class="seed-layout">
+        <div class="seed-upload-section">
+          <div class="section-header"><h2>Upload Seed Images</h2></div>
+          <div class="upload-zone" id="upload-zone">
+            <div class="upload-icon">📁</div>
+            <p>Drag & drop seed images here</p>
+            <p class="upload-sub">or click to browse</p>
+            <input type="file" id="seed-file-input" accept="image/*" multiple hidden />
+          </div>
+        </div>
+        <div class="seed-gallery-section">
+          <div class="section-header">
+            <h2>Seed Gallery</h2>
+            <button class="btn btn-danger btn-sm" id="btn-clear-seeds">Clear All</button>
+          </div>
+          <div class="seed-gallery" id="seed-gallery">
+            <!-- Seed image cards injected here -->
+          </div>
+        </div>
+        <div class="seed-matching-section">
+          <div class="section-header"><h2>Seed ↔ Detection Matching</h2></div>
+          <div class="matching-panel" id="matching-panel">
+            <div class="match-placeholder">Upload seed images and wait for detections to see matches.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== COMMAND CENTER TAB ===== -->
+    <section class="tab-content" id="tab-commands">
+      <div class="commands-layout">
+        <!-- Primary Controls -->
+        <div class="cmd-section">
+          <div class="section-header"><h2>Vehicle Controls</h2></div>
+          <div class="cmd-grid">
+            <div class="cmd-card">
+              <div class="cmd-card-title">Arm / Disarm</div>
+              <div class="arm-toggle-container">
+                <button class="btn btn-arm" id="btn-arm">ARM</button>
+                <button class="btn btn-disarm" id="btn-disarm">DISARM</button>
+              </div>
+            </div>
+            <div class="cmd-card">
+              <div class="cmd-card-title">Flight Mode</div>
+              <select class="cmd-select" id="flight-mode-select">
+                <option value="STABILIZE">Stabilize</option>
+                <option value="LOITER">Loiter</option>
+                <option value="GUIDED">Guided</option>
+                <option value="AUTO">Auto</option>
+                <option value="RTL">RTL</option>
+                <option value="LAND">Land</option>
+              </select>
+              <button class="btn btn-primary btn-sm" id="btn-set-mode">Set Mode</button>
+            </div>
+            <div class="cmd-card">
+              <div class="cmd-card-title">Actions</div>
+              <div class="cmd-actions">
+                <button class="btn btn-primary" id="btn-takeoff">🚀 Takeoff</button>
+                <button class="btn btn-primary" id="btn-land">🛬 Land</button>
+                <button class="btn btn-secondary" id="btn-rtb">🏠 RTB</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Sortie Management -->
+        <div class="cmd-section">
+          <div class="section-header"><h2>Sortie Management</h2></div>
+          <div class="cmd-grid">
+            <div class="cmd-card">
+              <div class="cmd-card-title">Current Sortie</div>
+              <div class="sortie-info">
+                <div class="sortie-num" id="cmd-sortie-num">Sortie #1</div>
+                <div class="sortie-status" id="cmd-sortie-status">IDLE</div>
+              </div>
+              <div class="cmd-actions">
+                <button class="btn btn-primary" id="btn-start-sortie">▶ Start Sortie</button>
+                <button class="btn btn-secondary" id="btn-end-sortie">⏹ End Sortie</button>
+              </div>
+            </div>
+            <div class="cmd-card">
+              <div class="cmd-card-title">Recharge Status</div>
+              <div class="recharge-status" id="recharge-status">
+                <div class="recharge-icon">🔋</div>
+                <div class="recharge-text">Not Docked</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Emergency -->
+        <div class="cmd-section emergency-section">
+          <div class="section-header"><h2>⚠ Emergency Controls</h2></div>
+          <div class="cmd-grid emergency-grid">
+            <button class="btn btn-emergency" id="btn-emergency-land">🚨 EMERGENCY LAND</button>
+            <button class="btn btn-kill" id="btn-kill-switch">💀 KILL SWITCH</button>
+            <button class="btn btn-abort" id="btn-abort">✋ ABORT MISSION</button>
+          </div>
+        </div>
+        <!-- Command Log -->
+        <div class="cmd-section">
+          <div class="section-header">
+            <h2>Command Log</h2>
+            <button class="btn btn-sm btn-secondary" id="btn-clear-log">Clear</button>
+          </div>
+          <div class="command-log" id="command-log">
+            <div class="log-entry system">System initialized — Simulated mode</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- STATUS BAR -->
+  <footer id="status-bar">
+    <div class="status-left">
+      <span class="status-item">
+        <span class="status-dot" id="heartbeat-dot"></span>
+        Heartbeat
+      </span>
+      <span class="status-item" id="status-link">Link: 100%</span>
+      <span class="status-item" id="status-datarate">↕ 0 B/s</span>
+    </div>
+    <div class="status-center">
+      <span id="status-time"></span>
+    </div>
+    <div class="status-right">
+      <span class="status-item" id="status-mode">Mode: STABILIZE</span>
+      <span class="status-item" id="status-battery-bar">
+        Battery: <span id="status-bat-val">100%</span>
+        <div class="mini-bar"><div class="mini-bar-fill" id="status-bat-fill"></div></div>
+      </span>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,244 @@
+/* ===== HUD Styles ===== */
+
+.hud-container {
+  position: relative;
+  background: var(--bg-base);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--glow-primary);
+}
+
+#hud-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 360px;
+}
+
+.hud-overlay-info {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.mode-badge {
+  background: rgba(56, 189, 248, 0.2);
+  color: var(--accent-primary);
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.armed-badge {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.armed-badge.armed {
+  background: rgba(52, 211, 153, 0.2);
+  color: var(--accent-success);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+.armed-badge.disarmed {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--accent-danger);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+}
+
+/* ===== Flight Data Grid ===== */
+.flight-data-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 480px) 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* ===== Telemetry Panels ===== */
+.telemetry-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.telem-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.telem-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-fast);
+}
+.telem-card:hover {
+  border-color: var(--border-accent);
+  box-shadow: var(--glow-primary);
+}
+.telem-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-primary), transparent);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.telem-card:hover::before {
+  opacity: 1;
+}
+
+.telem-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.telem-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.telem-value small {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* Telem bars */
+.telem-bar {
+  height: 4px;
+  background: var(--bg-base);
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.telem-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+  background: var(--accent-primary);
+  width: 0%;
+}
+.telem-bar-fill.speed { background: var(--accent-secondary); }
+.telem-bar-fill.battery { background: var(--accent-success); }
+.telem-bar-fill.link { background: var(--accent-info); }
+
+/* Compass mini */
+.telem-compass {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  position: relative;
+  margin-top: 6px;
+}
+.compass-needle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 16px;
+  background: linear-gradient(to top, var(--accent-danger) 50%, var(--text-primary) 50%);
+  transform-origin: center top;
+  transform: translate(-50%, 0) rotate(0deg);
+  border-radius: 1px;
+  transition: transform 0.3s ease;
+}
+
+/* ===== FSM Timeline ===== */
+.fsm-timeline {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+}
+.fsm-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.fsm-states {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.fsm-state {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--bg-base);
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  transition: all var(--transition-base);
+}
+.fsm-state.active {
+  color: var(--accent-primary);
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.3);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.15);
+}
+.fsm-state.completed {
+  color: var(--accent-success);
+  background: rgba(52, 211, 153, 0.08);
+}
+.fsm-arrow {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+/* ===== Telemetry Graph ===== */
+.telem-graph-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+}
+.graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.graph-header select {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+#telem-graph {
+  width: 100%;
+  display: block;
+}
