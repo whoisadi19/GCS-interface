@@ -22,6 +22,8 @@ export class Telemetry {
       sortie: 1,
     };
 
+    this.mode = 'simulated';
+
     this.history = {
       altitude: [],
       speed: [],
@@ -37,6 +39,8 @@ export class Telemetry {
   }
 
   tick(dt = 0.1) {
+    if (this.mode === 'live') return;
+
     this._simTime += dt;
     const t = this._simTime;
 
@@ -81,6 +85,21 @@ export class Telemetry {
   }
   startMission() { this._missionActive = true; }
   stopMission() { this._missionActive = false; }
+
+  applyLiveData(newData) {
+    if (this.mode !== 'live') return;
+
+    // Update data object with new values
+    Object.assign(this.data, newData);
+
+    // Push history (similar to tick)
+    for (const key of ['altitude', 'speed', 'battery', 'heading']) {
+      this.history[key].push(this.data[key]);
+      if (this.history[key].length > this.maxHistory) {
+      	this.history[key].shift();
+      }
+    }
+  }
 
   updateUI() {
     const d = this.data;

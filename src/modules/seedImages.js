@@ -8,6 +8,7 @@ export class SeedImageManager {
     this.detectionViewer = detectionViewer;
     this._nextId = 1;
     this._matchTimer = null;
+    this.mode = 'simulated';
     this._setupListeners();
     this._startMatchSimulation();
   }
@@ -115,6 +116,8 @@ export class SeedImageManager {
 
   _startMatchSimulation() {
     this._matchTimer = setInterval(() => {
+      if (this.mode === 'live') return; // Do not fake matches in live mode
+
       if (this.seeds.length === 0 || !this.detectionViewer) return;
       const detections = this.detectionViewer.getDetections();
       if (detections.length === 0) return;

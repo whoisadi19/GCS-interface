@@ -111,9 +111,17 @@
       </nav>
     </div>
     <div class="flex items-center gap-3">
-      <div class="flex items-center gap-2 bg-tertiary/10 px-3 py-1">
-        <span class="w-2 h-2 bg-tertiary rounded-full pulse-glow"></span>
-        <span class="text-[10px] font-mono text-tertiary uppercase tracking-widest" id="conn-label">Simulated</span>
+      <!-- Connection Panel -->
+      <div class="flex items-center gap-2 bg-surface-container-high px-2 py-1 border border-outline-variant/20 hidden lg:flex">
+        <input type="text" id="ros-ip" value="192.168.1.100" class="bg-surface-container-lowest text-on-surface font-mono text-[10px] px-2 py-0.5 border border-outline-variant/20 focus:outline-none focus:border-primary w-28" placeholder="IP Address">
+        <span class="text-on-surface-variant font-mono text-[10px]">:</span>
+        <input type="text" id="ros-port" value="9090" class="bg-surface-container-lowest text-on-surface font-mono text-[10px] px-2 py-0.5 border border-outline-variant/20 focus:outline-none focus:border-primary w-12" placeholder="Port">
+        <button id="btn-ros-connect" class="bg-primary/20 text-primary hover:bg-primary/30 font-bold text-[10px] uppercase tracking-widest px-3 py-0.5 transition-colors cursor-pointer">Connect</button>
+      </div>
+
+      <div class="flex items-center gap-2 bg-secondary-container/10 px-3 py-1" id="conn-status-container">
+        <span class="w-2 h-2 bg-secondary-container rounded-full" id="conn-dot"></span>
+        <span class="text-[10px] font-mono text-secondary-container uppercase tracking-widest" id="conn-label">Simulated</span>
       </div>
       <div class="bg-primary/10 px-3 py-1">
         <span class="text-[10px] font-mono text-primary uppercase tracking-widest" id="sortie-badge-top">Sortie #1</span>

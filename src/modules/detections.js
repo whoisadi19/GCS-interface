@@ -10,6 +10,7 @@ export class DetectionViewer {
     this._simTimer = null;
     this._classes = ['Feature-A', 'Feature-B', 'Feature-C', 'Rock', 'Marker', 'Target-1'];
     this._colors = ['#44d8f1', '#818cf8', '#67e100', '#fbbf24', '#f87171', '#fd6c00'];
+    this.mode = 'simulated';
 
     this._setupListeners();
     this._startSimulation();
@@ -30,9 +31,38 @@ export class DetectionViewer {
   _startSimulation() {
     this._drawFeed();
     this._simTimer = setInterval(() => {
-      if (Math.random() > 0.4) this._addSimDetection();
-      this._drawFeed();
+      if (this.mode !== 'live' && Math.random() > 0.4) this._addSimDetection();
+      if (this.mode !== 'live') this._drawFeed(); // Live mode will trigger draw immediately on rx
     }, 3000);
+  }
+
+  applyLiveDetection(det) {
+    if (this.mode !== 'live') return;
+
+    let classIdx = this._classes.indexOf(det.className || det.class_name);
+    if (classIdx === -1) {
+      this._classes.push(det.className || det.class_name || 'Unknown');
+      classIdx = this._classes.length - 1;
+      this._colors.push('#ffffff'); // Default color for unknown classes
+    }
+
+    const newDet = {
+      id: this._nextId++,
+      className: det.className || det.class_name || 'Unknown',
+      confidence: Math.round(det.confidence || 0),
+      x: (det.x || 0).toFixed(2),
+      y: (det.y || 0).toFixed(2),
+      z: (det.z || 0).toFixed(2),
+      timestamp: new Date(),
+      bbox: det.bbox || { x: 10 + Math.random()*200, y: 10 + Math.random()*200, w: 50, h: 50 },
+      color: this._colors[classIdx] || '#ffffff',
+    };
+
+    this.detections.unshift(newDet);
+    if (this.detections.length > 50) this.detections.pop();
+    this._renderCards();
+    this._updateCount();
+    this._drawFeed();
   }
 
   _addSimDetection() {

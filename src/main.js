@@ -8,6 +8,7 @@ import { Telemetry } from './modules/telemetry.js';
 import { CommandCenter } from './modules/commands.js';
 import { DetectionViewer } from './modules/detections.js';
 import { SeedImageManager } from './modules/seedImages.js';
+import { ROSBridgeClient } from './modules/rosbridge.js';
 
 class GCSApp {
   constructor() {
@@ -19,6 +20,7 @@ class GCSApp {
     this.graphParam = 'altitude';
     this._rafId = null;
     this._activeTab = 'dashboard';
+    this.rosbridge = null;
   }
 
   init() {
@@ -27,11 +29,14 @@ class GCSApp {
     // Initialize modules
     this.telemetry = new Telemetry();
     this.hud = new HUD('hud-canvas');
+    this.rosbridge = new ROSBridgeClient();
 
     // Command center with logging callback
     this.commands = new CommandCenter(this.telemetry, (msg, type) => {
       CommandCenter.addLog(msg, type);
-    });
+    }, this.rosbridge);
+
+    this._setupROS();
 
     // Detection viewer
     this.detections = new DetectionViewer();
@@ -55,6 +60,138 @@ class GCSApp {
     CommandCenter.addLog('Waiting for vehicle connection...', 'system');
 
     console.log('✅ ASCEND GCS KINETIC — Ready');
+  }
+
+  _setupROS() {
+    this.rosbridge.onConnected = () => {
+      this.telemetry.mode = 'live';
+      this.detections.mode = 'live';
+      this.seedImages.mode = 'live';
+      this._updateConnStatus('LIVE', 'tertiary');
+      CommandCenter.addLog('Connected to Pi 4 ROSBridge', 'success');
+
+      // Link Quality heartbeat subscription
+      this.rosbridge.onLinkQuality = (quality) => {
+        this.telemetry.applyLiveData({ link: quality });
+      };
+
+      // Subscriptions
+      this.rosbridge.subscribe('/mavros/state', 'mavros_msgs/State', (msg) => {
+        this.telemetry.applyLiveData({
+          armed: msg.armed,
+          mode: msg.mode,
+          connected: msg.connected
+        });
+      });
+
+      this.rosbridge.subscribe('/mavros/imu/data', 'sensor_msgs/Imu', (msg) => {
+        // simple quaternion to euler for hud
+        const q0 = msg.orientation.w;
+        const q1 = msg.orientation.x;
+        const q2 = msg.orientation.y;
+        const q3 = msg.orientation.z;
+        const roll = Math.atan2(2 * (q0 * q1 + q2 * q3), 1 - 2 * (q1 * q1 + q2 * q2)) * 180 / Math.PI;
+        const pitch = Math.asin(2 * (q0 * q2 - q3 * q1)) * 180 / Math.PI;
+        this.telemetry.applyLiveData({ roll, pitch });
+      });
+
+      this.rosbridge.subscribe('/mavros/global_position/compass_hdg', 'std_msgs/Float64', (msg) => {
+        this.telemetry.applyLiveData({ heading: msg.data });
+      });
+
+      this.rosbridge.subscribe('/mavros/local_position/pose', 'geometry_msgs/PoseStamped', (msg) => {
+        this.telemetry.applyLiveData({ altitude: msg.pose.position.z });
+      });
+
+      this.rosbridge.subscribe('/mavros/local_position/velocity_body', 'geometry_msgs/TwistStamped', (msg) => {
+        const speed = Math.sqrt(msg.twist.linear.x ** 2 + msg.twist.linear.y ** 2);
+        this.telemetry.applyLiveData({ speed: speed, vspeed: msg.twist.linear.z });
+      });
+
+      this.rosbridge.subscribe('/mavros/battery', 'sensor_msgs/BatteryState', (msg) => {
+        this.telemetry.applyLiveData({ 
+          battery: msg.percentage * 100,
+          voltage: msg.voltage,
+          current: Math.abs(msg.current)
+        });
+      });
+
+      this.rosbridge.subscribe('/mavros/global_position/raw/satellites', 'std_msgs/UInt32', (msg) => {
+        this.telemetry.applyLiveData({ gps_sats: msg.data });
+      });
+
+      this.rosbridge.subscribe('/mavros/vfr_hud', 'mavros_msgs/VFR_HUD', (msg) => {
+        this.telemetry.applyLiveData({
+          heading: msg.heading, // vfr hud heading is somewhat reliable fallback
+          speed: msg.groundspeed,
+          altitude: msg.alt
+        });
+      });
+
+      // Detections subscription (Placeholder for Pi's AI pipeline)
+      this.rosbridge.subscribe('/ai/detections', 'std_msgs/String', (msg) => {
+        try {
+          const payload = JSON.parse(msg.data);
+          if (Array.isArray(payload)) {
+            payload.forEach(d => this.detections.applyLiveDetection(d));
+          } else {
+            this.detections.applyLiveDetection(payload);
+          }
+        } catch (e) {
+          console.warn('Failed to parse detection data:', e);
+        }
+      });
+    };
+
+    this.rosbridge.onDisconnected = () => {
+      if (this.telemetry.mode === 'live') {
+        CommandCenter.addLog('Disconnected from ROSBridge — Falling back to Simulation', 'warning');
+      }
+      this.telemetry.mode = 'simulated';
+      this.detections.mode = 'simulated';
+      this.seedImages.mode = 'simulated';
+      this._updateConnStatus('SIMULATED', 'secondary-container');
+    };
+
+    this.rosbridge.onError = (e) => {
+      this.telemetry.mode = 'simulated';
+      this.detections.mode = 'simulated';
+      this.seedImages.mode = 'simulated';
+      this._updateConnStatus('DISCONNECTED', 'error');
+    };
+
+    const btnConnect = document.getElementById('btn-ros-connect');
+    if (btnConnect) {
+      btnConnect.addEventListener('click', () => {
+        if (this.rosbridge.connected) {
+          this.rosbridge.disconnect();
+          btnConnect.textContent = 'Connect';
+        } else {
+          const ip = document.getElementById('ros-ip').value;
+          const port = document.getElementById('ros-port').value;
+          this.rosbridge.connect(`ws://${ip}:${port}`);
+          btnConnect.textContent = 'Disconnect';
+        }
+      });
+    }
+
+    // Auto-connect attempt
+    const defaultIp = document.getElementById('ros-ip')?.value || '192.168.1.100';
+    const defaultPort = document.getElementById('ros-port')?.value || '9090';
+    this.rosbridge.connect(`ws://${defaultIp}:${defaultPort}`);
+  }
+
+  _updateConnStatus(text, colorClass) {
+    const container = document.getElementById('conn-status-container');
+    const dot = document.getElementById('conn-dot');
+    const label = document.getElementById('conn-label');
+    
+    if (container && dot && label) {
+      container.className = `flex items-center gap-2 px-3 py-1 bg-${colorClass}/10`;
+      dot.className = `w-2 h-2 rounded-full bg-${colorClass} ${text === 'LIVE' ? 'pulse-glow' : ''}`;
+      label.className = `text-[10px] font-mono uppercase tracking-widest text-${colorClass}`;
+      label.textContent = text;
+    }
   }
 
   _setupTabs() {
