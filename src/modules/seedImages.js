@@ -2,10 +2,13 @@
  * Seed Image Manager — KINETIC Design
  */
 
+import { CommandCenter } from './commands.js';
+
 export class SeedImageManager {
-  constructor(detectionViewer) {
+  constructor(detectionViewer, rosbridge) {
     this.seeds = [];
     this.detectionViewer = detectionViewer;
+    this.rosbridge = rosbridge;
     this._nextId = 1;
     this._matchTimer = null;
     this.mode = 'simulated';
@@ -37,9 +40,17 @@ export class SeedImageManager {
       if (!file.type.startsWith('image/')) return;
       const reader = new FileReader();
       reader.onload = (e) => {
-        this.seeds.push({ id: this._nextId++, name: file.name, dataUrl: e.target.result, status: 'pending', matchScore: null, matchedDetection: null });
+        const base64Data = e.target.result;
+        this.seeds.push({ id: this._nextId++, name: file.name, dataUrl: base64Data, status: 'pending', matchScore: null, matchedDetection: null });
         this._renderGallery();
         this._renderMatching();
+
+        // Publish to ROS (bypassing the 'live' safety check for this test)
+        if (this.rosbridge) {
+          const payload = { data: base64Data };
+          this.rosbridge.publish('/gcs/seed_image', 'std_msgs/String', payload);
+          CommandCenter.addLog(`Transmitted seed image to Pi: ${file.name}`, 'system');
+        }
       };
       reader.readAsDataURL(file);
     });

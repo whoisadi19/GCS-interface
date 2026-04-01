@@ -9,6 +9,7 @@ import { CommandCenter } from './modules/commands.js';
 import { DetectionViewer } from './modules/detections.js';
 import { SeedImageManager } from './modules/seedImages.js';
 import { ROSBridgeClient } from './modules/rosbridge.js';
+import { FailsafeSystem } from './modules/failsafes.js';
 
 class GCSApp {
   constructor() {
@@ -17,6 +18,7 @@ class GCSApp {
     this.commands = null;
     this.detections = null;
     this.seedImages = null;
+    this.failsafes = null;
     this.graphParam = 'altitude';
     this._rafId = null;
     this._activeTab = 'dashboard';
@@ -31,18 +33,19 @@ class GCSApp {
     this.hud = new HUD('hud-canvas');
     this.rosbridge = new ROSBridgeClient();
 
-    // Command center with logging callback
     this.commands = new CommandCenter(this.telemetry, (msg, type) => {
       CommandCenter.addLog(msg, type);
     }, this.rosbridge);
 
-    this._setupROS();
+    this.failsafes = new FailsafeSystem(this.telemetry, this.commands);
 
     // Detection viewer
     this.detections = new DetectionViewer();
 
     // Seed image manager
-    this.seedImages = new SeedImageManager(this.detections);
+    this.seedImages = new SeedImageManager(this.detections, this.rosbridge);
+
+    this._setupROS();
 
     // Tab navigation (both top nav and side nav)
     this._setupTabs();
@@ -238,6 +241,9 @@ class GCSApp {
     const loop = () => {
       // Tick telemetry simulation
       this.telemetry.tick(0.1);
+
+      // Check telemetry against safety thresholds
+      // if (this.failsafes) this.failsafes.tick(); // Temporarily disabled since missing MAVROS crashes the websocket
 
       // Update HUD (only render canvas if PFD tab is visible)
       this.hud.update(this.telemetry.data);

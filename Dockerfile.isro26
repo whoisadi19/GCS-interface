@@ -1,0 +1,30 @@
+# Base image: Official ROS Noetic (Ubuntu 20.04)
+# This is fully supported on Raspberry Pi 4/5 (ARM64)
+FROM ros:noetic-ros-base
+
+# Bypass timezone prompt during apt-get
+ENV DEBIAN_FRONTEND=noninteractive 
+
+# Install required packages: MAVROS, ROSBridge, and general utilities
+RUN apt-get update && apt-get install -y \
+    ros-noetic-mavros \
+    ros-noetic-mavros-extras \
+    ros-noetic-rosbridge-suite \
+    wget \
+    nano \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# MAVROS requires geographic datasets to convert GPS coordinates properly
+RUN wget -O - https://raw.githubusercontent.com/mavlink/mavros/master/mavros/scripts/install_geographiclib_datasets.sh | bash
+
+# Setup the default working directory
+RUN mkdir -p /catkin_ws
+WORKDIR /catkin_ws
+
+# Pre-set networking parameters so you don't have to export them manually later
+ENV ROS_HOSTNAME=localhost
+ENV ROS_MASTER_URI=http://localhost:11311
+
+# The default command when container starts
+CMD ["bash"]

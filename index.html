@@ -98,6 +98,20 @@
 </head>
 <body class="bg-surface text-on-surface font-body overflow-hidden">
 
+  <!-- ===== FAILSAFE OVERLAY ===== -->
+  <div id="failsafe-overlay" class="fixed inset-0 z-[100] border-8 border-error pointer-events-none hidden opacity-0 flex flex-col justify-between p-12 transition-opacity duration-300">
+    <div class="flex justify-center">
+      <div class="bg-error text-on-error font-black text-3xl font-headline uppercase tracking-[0.2em] px-8 py-3 animate-pulse shadow-[0_0_50px_rgba(255,180,171,0.5)]">
+        FAILSAFE TRIGGERED
+      </div>
+    </div>
+    <div class="flex justify-center">
+      <div id="failsafe-message" class="bg-surface/90 backdrop-blur-md border border-error text-error font-mono text-xl uppercase tracking-widest px-8 py-4 shadow-[0_0_30px_rgba(255,180,171,0.2)]">
+        Monitoring...
+      </div>
+    </div>
+  </div>
+
   <!-- ===== TOP APP BAR ===== -->
   <header class="fixed top-0 w-full z-50 h-12 bg-[#121414] border-b border-[#3c494c]/15 flex justify-between items-center px-6">
     <div class="flex items-center gap-8">
